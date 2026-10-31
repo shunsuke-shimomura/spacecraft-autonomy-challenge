@@ -1,0 +1,89 @@
+---
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-json
+        fail_fast: true
+      - id: pretty-format-json
+        exclude_types: [jupyter]
+        args: [--autofix, --no-sort-keys]
+      - id: requirements-txt-fixer
+
+  - repo: https://github.com/crate-ci/typos
+    rev: 7f9d0819ca1c008ade73f4b41fa9d258d48f605b  # frozen: v1.51.1
+    hooks:
+      - id: typos
+
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: 7c1739b6be770a7ccc8170a43993ccbb8e19dfb9  # frozen: v1.8.9
+    hooks:
+      - id: tombi-format
+
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: 03a7d1a4936b5889602852175bca2d39acb3281e  # frozen: v0.3.0
+    hooks:
+      - id: rumdl-check
+        args: [--fix]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 38bfb07c0c64c304f47eb52090f8288150c77730  # frozen: v0.17.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: dd409d04a3fa4a50f918dddb3ad3c6d8f46ab2cd  # frozen: 0.13.4
+    hooks:
+      - id: uv-lock
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      - id: no-commit-to-branch
+
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: 7c1739b6be770a7ccc8170a43993ccbb8e19dfb9  # frozen: v1.8.9
+    hooks:
+      - id: tombi-lint
+        args: [--error-on-warnings]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--format=standard, --strict]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: 57217c394fff5064bedd48421fe4b6f5f73aad47  # frozen: v4.19.2
+    hooks:
+      - id: commitizen
+      - id: commitizen-branch

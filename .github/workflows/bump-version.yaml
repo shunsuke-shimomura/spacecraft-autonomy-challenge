@@ -1,0 +1,41 @@
+name: Bump version
+
+on:
+  pull_request:
+    types:
+      - closed
+  workflow_dispatch:
+    inputs:
+      bump-type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions: {}
+
+jobs:
+  bump-version:
+    name: Bump version
+    if: >-
+      github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+      && (github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Bump version
+        uses: conjikidow/bump-version-action@81d28c7b875a29c4e58cbcffe6f25503fdc8ba81 # v4.2.4
+        with:
+          label-major: update::major
+          label-minor: update::minor
+          label-patch: update::patch
+          manual-bump-type: ${{ inputs.bump-type }}
+          labels-to-add: automated,release
+          create-release: true

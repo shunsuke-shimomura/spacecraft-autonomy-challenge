@@ -1,0 +1,443 @@
+name: CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+permissions: {}
+
+jobs:
+  determine-changes:
+    name: Determine changes
+    if: github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      github-actions: ${{ steps.changed-files.outputs.github_actions_any_changed }}
+      github-actions-ci: ${{ steps.changed-files.outputs.github_actions_ci_any_changed }}
+      pre-commit-config: ${{ steps.changed-files.outputs.pre_commit_config_any_changed }}
+      toml: ${{ steps.changed-files.outputs.toml_any_changed }}
+      yaml: ${{ steps.changed-files.outputs.yaml_any_changed }}
+      markdown: ${{ steps.changed-files.outputs.markdown_any_changed }}
+      python: ${{ steps.changed-files.outputs.python_any_changed }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Determine changed files
+        id: changed-files
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        with:
+          files_yaml: |
+            github_actions:
+              - '.github/workflows/**'
+              - '.github/problem-matchers/actionlint.json'
+            github_actions_ci:
+              - '.github/workflows/ci.yaml'
+            pre_commit_config:
+              - '.pre-commit-config.yaml'
+            toml:
+              - '**/*.toml'
+              - '.tombi.toml'
+            yaml:
+              - '**/*.yaml'
+              - '**/*.yml'
+              - '.yamllint.yaml'
+            markdown:
+              - '**/*.md'
+              - '.rumdl.toml'
+            python:
+              - '**/*.py'
+              - '**/*.ipynb'
+              - '.python-version'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
+  lint-github-actions:
+    name: Lint GitHub Actions
+    needs: determine-changes
+    if: needs.determine-changes.outputs.github-actions == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Lint GitHub Actions
+        env:
+          ACTIONLINT_VERSION: '1.7.12'
+          SHELLCHECK_PY_VERSION: '0.11.0.1'
+          SHELLCHECK_OPTS: --enable=require-double-brackets
+        run: |
+          go install "github.com/rhysd/actionlint/cmd/actionlint@v${ACTIONLINT_VERSION}"
+          uv tool install "shellcheck-py==${SHELLCHECK_PY_VERSION}"
+          echo '::add-matcher::.github/problem-matchers/actionlint.json'
+          "$(go env GOPATH)/bin/actionlint" -color -shellcheck="$(uv tool dir --bin)/shellcheck"
+
+  audit-zizmor:
+    name: Audit with zizmor
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.github-actions == 'true'
+      || needs.determine-changes.outputs.pre-commit-config == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Audit with zizmor
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          version: 'v1.31.1'
+          advanced-security: false
+          annotations: true
+
+      - name: Audit with zizmor (SARIF upload)
+        if: >-
+          always()
+          && github.event_name == 'push'
+          && github.event.repository.private == false
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          version: 'v1.31.1'
+          advanced-security: true
+
+  format-toml:
+    name: Format TOML
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.toml == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Tombi
+        uses: tombi-toml/setup-tombi@dbb85e6c7616772f590af0db4a7c455dfe61fec7 # v1.8.9
+        with:
+          version: '1.8.9'
+
+      - name: Format TOML
+        run: tombi format
+
+      - name: Suggest TOML formatting
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-suggester@ac5ce6d94e35c00530447dc63c271e38e4fd36c6 # v1.26.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tool_name: tombi-format
+          cleanup: false
+
+      - name: Check TOML formatting
+        run: |
+          git diff --name-only | while IFS= read -r file; do
+            echo "::error file=${file},title=tombi-format::File is not formatted. Run tombi format."
+          done
+          git diff --exit-code
+
+  lint-toml:
+    name: Lint TOML
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.toml == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Tombi
+        uses: tombi-toml/setup-tombi@dbb85e6c7616772f590af0db4a7c455dfe61fec7 # v1.8.9
+        with:
+          version: '1.8.9'
+
+      - name: Lint TOML
+        run: tombi lint --error-on-warnings --diagnostics-format=github
+
+  lint-yaml:
+    name: Lint YAML
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.yaml == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Lint YAML
+        env:
+          YAMLLINT_VERSION: '1.38.0'
+        run: |
+          git ls-files -z '*.yaml' '*.yml' \
+            | xargs -0 -r uvx --from="yamllint==${YAMLLINT_VERSION}" yamllint --format=github --strict
+
+  lint-markdown:
+    name: Lint Markdown
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.markdown == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Lint Markdown
+        uses: rvben/rumdl@19006897519812a2fdc508314b34738e5c281233 # v0.3.0
+        with:
+          version: '0.3.0'
+          report-type: annotations
+
+  format-python:
+    name: Format Python
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.python == 'true'
+      || needs.determine-changes.outputs.markdown == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Install Ruff
+        run: uv sync --only-group=dev --locked
+
+      - name: Format Python
+        run: uv run --no-sync ruff format .
+
+      - name: Suggest Python formatting
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-suggester@ac5ce6d94e35c00530447dc63c271e38e4fd36c6 # v1.26.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tool_name: ruff-format
+          cleanup: false
+
+      - name: Check Python formatting
+        run: |
+          git diff --name-only | while IFS= read -r file; do
+            echo "::error file=${file},title=ruff-format::File is not formatted. Run ruff format."
+          done
+          git diff --exit-code
+
+  lint-python:
+    name: Lint Python
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.python == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Install Ruff
+        run: uv sync --only-group=dev --locked
+
+      - name: Lint Python
+        run: uv run --no-sync ruff check --output-format=github .
+
+  test-python:
+    name: Test Python
+    needs: determine-changes
+    if: >-
+      needs.determine-changes.outputs.python == 'true'
+      || needs.determine-changes.outputs.github-actions-ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Install the project
+        run: uv sync --locked
+
+      - name: Check the marimo notebook
+        run: uv run --no-sync marimo check --strict app.py
+
+      - name: Run the starter strategy
+        run: uv run --no-sync autonomy-challenge run submission/strategy.py:MyStrategy
+
+  check-spelling:
+    name: Check spelling
+    if: github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check spelling
+        uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+
+  lint-commit-messages:
+    name: Lint commit messages
+    if: github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install Commitizen
+        uses: commitizen-tools/setup-cz@96c75e6ae9632047f2c9b4025b9dd1624b40de8f # v0.9.1
+        with:
+          version: '4.19.2'
+          python-version: '3.x'
+
+      - name: Lint commit messages (push)
+        if: github.event_name == 'push'
+        env:
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if ! git cat-file -e "${PUSH_BEFORE_SHA}^{commit}" 2> /dev/null; then
+            echo '::notice title=cz check::Base commit unavailable (new branch or force push); skipping lint.'
+            exit 0
+          fi
+          cz check --rev-range="${PUSH_BEFORE_SHA}..${GITHUB_SHA}"
+
+      - name: Lint commit messages (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: cz check --rev-range="${PR_BASE_SHA}..${PR_HEAD_SHA}"
+
+  run-prek-hooks:
+    name: Run prek hooks
+    if: github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run prek hooks
+        uses: j178/prek-action@af4d4fcb6922b8e6f65c0426947125fcc38794ce # v3.0.2
+        with:
+          prek-version: 'v0.5.7'
+          extra-args: --skip=no-commit-to-branch --all-files

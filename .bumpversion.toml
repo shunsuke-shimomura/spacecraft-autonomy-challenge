@@ -1,0 +1,15 @@
+[tool.bumpversion]
+current_version = "2.1.1"
+commit = false
+tag = false
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+search = 'name = "spacecraft-autonomy-challenge-submission"\nversion = "{current_version}"'
+replace = 'name = "spacecraft-autonomy-challenge-submission"\nversion = "{new_version}"'
+regex = true

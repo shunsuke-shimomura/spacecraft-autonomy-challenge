@@ -1,0 +1,69 @@
+---
+changelog:
+  exclude:
+    labels:
+      - release
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Features
+      labels:
+        - type::feat
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Bug fixes
+      labels:
+        - type::fix
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Performance
+      labels:
+        - type::perf
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Reverts
+      labels:
+        - type::revert
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Documentation
+      labels:
+        - type::docs
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Maintenance
+      labels:
+        - type::refactor
+        - type::style
+        - type::test
+        - type::build
+        - type::ci
+        - type::chore
+      exclude:
+        labels:
+          - dependencies
+          - dev-dependencies
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other changes
+      labels:
+        - '*'
+      exclude:
+        labels:
+          - dev-dependencies

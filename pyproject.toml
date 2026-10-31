@@ -1,0 +1,37 @@
+[project]
+name = "spacecraft-autonomy-challenge-submission"
+version = "2.1.1"
+description = "Participant submission for the Spacecraft Autonomy Challenge"
+requires-python = ">=3.12"
+license = "MIT-0"
+license-files = ["LICENSE"]
+dependencies = [
+  "spacecraft-autonomy-challenge-core",
+]
+
+[dependency-groups]
+dev = [
+  "ruff==0.17.1",
+]
+notebook = [
+  "altair>=6.3.0",
+  "marimo>=0.25.2",
+]
+
+[tool.ruff]
+required-version = "==0.17.1"
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# marimo writes a bare `return` at the end of every cell
+"app.py" = ["PLR1711"]
+
+[tool.uv]
+default-groups = ["dev", "notebook"]
+exclude-newer = "3 days"
+
+[tool.uv.sources]
+spacecraft-autonomy-challenge-core = { git = "https://github.com/conjikidow/spacecraft-autonomy-challenge-core", tag = "v2.0.2" }

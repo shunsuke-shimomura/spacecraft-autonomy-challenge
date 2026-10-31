@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Packed submissions
+submission.zip
+
+# Virtual environments
+.venv
+
+# marimo session snapshots
+__marimo__/
+
+# Submissions this clone has sent to an evaluation server
+.submissions.log

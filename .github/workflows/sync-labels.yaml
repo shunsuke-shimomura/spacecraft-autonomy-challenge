@@ -1,0 +1,44 @@
+name: Sync labels
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - '.github/workflows/sync-labels.yaml'
+      - '.github/labels/label-definition.yaml'
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/sync-labels.yaml'
+      - '.github/labels/label-definition.yaml'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sync-labels:
+    name: Sync labels
+    if: github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Sync labels
+        uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
+        with:
+          yaml-file: .github/labels/label-definition.yaml
+          skip-delete: false
+          dry-run: ${{ github.event_name == 'pull_request' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,82 @@
+name: Manage pull requests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+
+defaults:
+  run:
+    shell: bash
+
+permissions: {}
+
+jobs:
+  label-pull-request:
+    name: Label pull request
+    if: >-
+      github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.changes.title != null)
+    concurrency:
+      group: pull-request-labels-${{ github.ref }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Label pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          pull_request="$(gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}")"
+          title="$(jq --raw-output '.title' <<< "${pull_request}")"
+          mapfile -t current_labels < <(jq --raw-output '.labels[].name' <<< "${pull_request}")
+
+          title_pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^[:space:]]+\))?(!)?: '
+          wanted_labels=()
+          if [[ ${title} =~ ${title_pattern} ]]; then
+            wanted_labels+=("type::${BASH_REMATCH[1]}")
+            if [[ -n ${BASH_REMATCH[3]} ]]; then
+              wanted_labels+=('breaking')
+            fi
+          fi
+
+          for label in "${current_labels[@]}"; do
+            if [[ (${label} == type::* || ${label} == 'breaking') && " ${wanted_labels[*]} " != *" ${label} "* ]]; then
+              encoded_label="$(jq --null-input --raw-output --arg label "${label}" '$label | @uri')"
+              gh api "repos/{owner}/{repo}/issues/${PR_NUMBER}/labels/${encoded_label}" --method=DELETE > /dev/null
+            fi
+          done
+
+          if [[ ${#wanted_labels[@]} -gt 0 ]]; then
+            jq --null-input --args '{labels: $ARGS.positional}' "${wanted_labels[@]}" \
+              | gh api "repos/{owner}/{repo}/issues/${PR_NUMBER}/labels" --method=POST --input=- > /dev/null
+          fi
+
+  lint-pull-request-title:
+    name: Lint pull request title
+    if: >-
+      github.repository == 'conjikidow/spacecraft-autonomy-challenge-template'
+      && (github.event.action != 'edited' || github.event.changes.title != null)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Install Commitizen
+        uses: commitizen-tools/setup-cz@96c75e6ae9632047f2c9b4025b9dd1624b40de8f # v0.9.1
+        with:
+          version: '4.19.2'
+          python-version: '3.x'
+
+      - name: Lint pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: cz check --message="${PR_TITLE}"

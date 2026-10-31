@@ -1,0 +1,92 @@
+---
+- name: priority::high
+  description: 'High priority'
+  color: 'FFFF00'
+
+- name: priority::medium
+  description: 'Medium priority'
+  color: 'B5EF2D'
+
+- name: priority::low
+  description: 'Low priority'
+  color: '58DE5D'
+
+- name: update::major
+  description: 'Major update'
+  color: '00FFFF'
+
+- name: update::minor
+  description: 'Minor update'
+  color: '00768A'
+
+- name: update::patch
+  description: 'Patch update'
+  color: '032C42'
+
+- name: type::feat
+  description: 'New feature'
+  color: 'CC018E'
+
+- name: type::fix
+  description: 'Bug fix'
+  color: 'D42FD9'
+
+- name: type::perf
+  description: 'Performance improvement'
+  color: '6C0F9F'
+
+- name: type::revert
+  description: 'Revert of an earlier change'
+  color: 'A77AFA'
+
+- name: type::docs
+  description: 'Documentation change'
+  color: '978CFF'
+
+- name: type::refactor
+  description: 'Code refactoring'
+  color: '001577'
+
+- name: type::style
+  description: 'Code style change'
+  color: '001577'
+
+- name: type::test
+  description: 'Test change'
+  color: '001577'
+
+- name: type::build
+  description: 'Build system change'
+  color: '001577'
+
+- name: type::ci
+  description: 'CI change'
+  color: '001577'
+
+- name: type::chore
+  description: 'Other maintenance'
+  color: '001577'
+
+- name: breaking
+  description: 'Breaking change'
+  color: 'FF682C'
+
+- name: bug
+  description: 'Bug report'
+  color: 'FF9F72'
+
+- name: automated
+  description: 'Opened by a bot'
+  color: 'D6D6D6'
+
+- name: dependencies
+  description: 'Runtime dependency update'
+  color: 'D6D6D6'
+
+- name: dev-dependencies
+  description: 'Development dependency update'
+  color: 'D6D6D6'
+
+- name: release
+  description: 'Release pull request'
+  color: 'D6D6D6'
