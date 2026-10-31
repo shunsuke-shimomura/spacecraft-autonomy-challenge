@@ -1,38 +1,15 @@
-"""Your strategy for the Spacecraft Autonomy Challenge."""
+"""Spacecraft Autonomy Challenge の戦略。
 
-import pprint
+`MyStrategy` は `mpc.py` で定義した縮小ホライズン MPC コントローラそのもの。
+戦略ファイルのあるディレクトリがインポートパスの先頭に置かれるので、
+隣の `mpc.py` をそのままインポートできる。
+"""
 
-from spacecraft_autonomy_challenge import (  # noqa: F401
-    Commander,
-    CommandError,
-    CommandId,
-    DeclareCompletion,
-    MissionBrief,
-    PropulsionMode,
-    SafetyLimits,
-    ScheduledCommand,
-    SetHeater,
-    SetMomentumDump,
-    SetPropulsionMode,
-    SpacecraftParameters,
-    Strategy,
-    Telemetry,
-    ThrusterParameters,
-)
+from mpc import MPCSettings, MPCStrategy
 
 
-class MyStrategy(Strategy):
-    def initialize(
-        self, brief: MissionBrief, telemetry: Telemetry, commander: Commander
-    ) -> None:
-        """Called once at time 0.
+class MyStrategy(MPCStrategy):
+    """テレメトリごとに残りミッション全体を再計画し、先頭 1 ステップを
+    秒未満の分解能のコマンドスケジュールとして実行する。"""
 
-        Schedule commands with `commander.schedule(time_s, command)`,
-        e.g. `commander.schedule(600.0, SetMomentumDump(on=True))`.
-        The nominal initial state is `brief.nominal_initial_telemetry`.
-        """
-        pprint.pp(brief)
-        pprint.pp(telemetry)
-
-    def update(self, telemetry: Telemetry, commander: Commander) -> None:
-        """Called every `brief.decision_period_s` seconds with the latest telemetry."""
+    settings = MPCSettings()
